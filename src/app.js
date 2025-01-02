@@ -29,8 +29,14 @@ app.use(cookieParser());
 app.get("/", (req,res) => {res.status(200).send("Code Running")})
 
 const userRouter = require('./routes/user.route.js')
+const attendanceRoutes = require('./routes/attendance.route.js')
+const sabhaUserRoutes = require('./routes/sabhaUser.route.js')
 
 app.use('/api/v1/users', userRouter)
+
+app.use("/api/attendance", attendanceRoutes);
+app.use("/api/sabhaUser", sabhaUserRoutes);
+
 
 
 module.exports = app;
