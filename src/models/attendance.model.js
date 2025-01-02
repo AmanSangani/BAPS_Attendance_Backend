@@ -32,4 +32,6 @@ const attendanceSchema = new mongoose.Schema(
   }
 );
 
-module.exports = mongoose.model("Attendance", attendanceSchema);
+const Attendance = mongoose.model("Attendance", attendanceSchema);
+
+module.exports = { Attendance };

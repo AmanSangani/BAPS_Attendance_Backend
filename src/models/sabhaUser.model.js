@@ -17,4 +17,7 @@ const sabhaUserSchema = new mongoose.Schema(
     },
 );
 
-module.exports = mongoose.model("SabhaUser", sabhaUserSchema);
+
+const SabhaUser = mongoose.model("SabhaUser", sabhaUserSchema);
+
+module.exports = { SabhaUser };

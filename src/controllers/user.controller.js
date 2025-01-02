@@ -5,6 +5,7 @@ const { uploadOnCloud } = require("../utils/cloudService.js");
 const { ApiResponse } = require("../utils/ApiResponse.js");
 const jwt = require("jsonwebtoken");
 const mongoose = require("mongoose");
+const ROLES = require('../config/roles');
 
 const generateAccessAndRefreshToken = async (userId) => {
     try {
@@ -50,6 +51,10 @@ const registerUser = asyncHandler(async (req, res) => {
         console.log("Existed User : ", existedUser);
         throw new ApiError(409, "User already exists");
     }
+
+    if (role && !Object.values(ROLES).includes(role)) {
+        throw new ApiError(400, "Invalid role");
+      }
 
     const user = await User.create({
         name,
