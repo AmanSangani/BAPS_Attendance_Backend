@@ -1,18 +1,80 @@
 const mongoose = require("mongoose");
-const ROLES = require("../config/roles.js"); // Import the roles configuration
+const jwt = require("jsonwebtoken");
+const bcrypt = require("bcrypt");
 
-const userSchema = mongoose.Schema(
+const userSchema = new mongoose.Schema(
     {
-        name: { type: String, required: true },
-        email: { type: String, required: true, unique: true },
-        password: { type: String, required: true },
-        role: {
+        username: {
             type: String,
-            enum: Object.values(ROLES), // Use the roles from the config
-            default: ROLES.SAHSSANCHALAK, // Default role if none is provided
+            required: true,
+            unique: true,
+            lowercase: true,
+            trim: true,
+            index: true,
+        },
+        email: {
+            type: String,
+            required: true,
+            unique: true,
+            lowercase: true,
+            trim: true,
+        },
+        name: {
+            type: String,
+            required: true,
+            trim: true,
+            index: true,
+        },
+        password: {
+            type: String,
+            required: [true, "Password is required"],
+        },
+        refreshToken: {
+            type: String,
         },
     },
     { timestamps: true },
 );
 
-module.exports = mongoose.model("User", userSchema);
+userSchema.pre("save", async function (next) {
+    if (!this.isModified("password")) {
+        return next();
+    }
+    this.password = await bcrypt.hash(this.password, 10);
+    next();
+});
+
+userSchema.methods.isPasswordCorrect = async function (password) {
+    return await bcrypt.compare(password, this.password);
+};
+
+userSchema.methods.generateAccessToken = function () {
+    return jwt.sign(
+        {
+            _id: this._id,
+            email: this.email,
+            username: this.username,
+            name: this.name,
+        },
+        process.env.ACCESS_TOKEN_SECRET,
+        {
+            expiresIn: process.env.ACCESS_TOKEN_EXPIRY,
+        },
+    );
+};
+
+userSchema.methods.generateRefreshToken = function () {
+    return jwt.sign(
+        {
+            _id: this._id,
+        },
+        process.env.REFRESH_TOKEN_SECRET,
+        {
+            expiresIn: process.env.REFRESH_TOKEN_EXPIRY,
+        },
+    );
+};
+
+const User = mongoose.model("User", userSchema);
+
+module.exports = { User };
