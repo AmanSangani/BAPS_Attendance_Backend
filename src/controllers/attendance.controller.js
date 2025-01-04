@@ -28,7 +28,7 @@ const getAttendance = asyncHandler(async (req, res) => {
     const attendance = await Attendance.find(filter);
 
     if (!attendance.length) {
-        throw new ApiError(404, "No attendance found for the given criteria");
+        new ApiResponse(200, {}, "Attendance not found for selected Date")
     }
 
     return res.status(200).json(
