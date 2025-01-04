@@ -1,6 +1,7 @@
 const mongoose = require("mongoose");
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcrypt");
+const ROLES = require('../config/roles.js');  // Import the roles configuration
 
 const userSchema = new mongoose.Schema(
     {
@@ -28,6 +29,10 @@ const userSchema = new mongoose.Schema(
         password: {
             type: String,
             required: [true, "Password is required"],
+        },
+        role: {
+            type: String,
+            enum: Object.values(ROLES),
         },
         refreshToken: {
             type: String,
