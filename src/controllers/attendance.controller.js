@@ -29,7 +29,7 @@ const getAttendance = asyncHandler(async (req, res) => {
 
     if (!attendance.length) {
         return res.status(200).json(
-            new ApiResponse(200, {}, "Attendance not found for selected Date")
+            new ApiResponse(200, [], "Attendance not found for selected Date")
         );
     }
 
