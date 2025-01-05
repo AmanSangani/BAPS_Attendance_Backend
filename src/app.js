@@ -31,11 +31,16 @@ app.get("/", (req,res) => {res.status(200).send("Code Running")})
 const userRouter = require('./routes/user.route.js')
 const attendanceRoutes = require('./routes/attendance.route.js')
 const sabhaUserRoutes = require('./routes/sabhaUser.route.js')
+const mandalRoutes = require('./routes/madal.route.js')
+const zoneRoutes = require('./routes/zone.route.js')
+
 
 app.use('/api/v1/users', userRouter)
 
 app.use("/api/attendance", attendanceRoutes);
 app.use("/api/sabhaUser", sabhaUserRoutes);
+app.use("/api/mandal", mandalRoutes);
+app.use("/api/zone", zoneRoutes);
 
 
 

@@ -5,24 +5,68 @@ const { SabhaUser } = require("../models/sabhaUser.model.js");
 
 // Add a new SabhaUser
 const addUser = asyncHandler(async (req, res) => {
-    const { customID, name, mobileNumber, mandal } = req.body;
-
-    if (!customID || !name || !mobileNumber || !mandal) {
-        throw new ApiError(400, "All fields are required");
-    }
-
-    const newUser = await SabhaUser.create({
-        customID,
+    const {
         name,
         mobileNumber,
+        DOB,
+        address,
+        designation,
         mandal,
-        createdBy: req.user._id, // Set the logged-in user as the creator
+        activeStatus,
+        lastAcademicDetails,
+        skills,
+        isYST,
+        isRaviSabha,
+        image,
+    } = req.body;
+
+    if (!name || !mobileNumber || !mandal) {
+        throw new ApiError(400, "Name, mobileNumber, and mandal are required.");
+    }
+
+    // Validate mandal ID
+    const mandalData = await Mandal.findById(mandal);
+    if (!mandalData) {
+        throw new ApiError(404, "Mandal not found.");
+    }
+
+    // Generate a new customID
+    const initials = mandalData.initials;
+    const lastUser = await SabhaUser.findOne({ mandal }).sort({ createdAt: -1 });
+    const lastCustomID = lastUser
+        ? parseInt(lastUser.customID.replace(initials, ""))
+        : 97;
+    const newCustomID = `${initials}${lastCustomID + 1}`;
+
+    // Create a new user
+    const newUser = await SabhaUser.create({
+        customID: newCustomID,
+        name,
+        mobileNumber,
+        DOB,
+        address,
+        designation,
+        mandal,
+        activeStatus,
+        lastAcademicDetails,
+        skills,
+        isYST,
+        isRaviSabha,
+        image,
+        createdBy: req.user._id,
     });
 
+    // Validate mandal ID
+    const newSabhaUserData = await SabhaUser.findById(newCustomID);
+    if (!newSabhaUserData) {
+        throw new ApiError(404, "User not Created.");
+    }
+
     return res.status(201).json(
-        new ApiResponse(201, newUser, "User added successfully")
+        new ApiResponse(201, newUser, "User added successfully.")
     );
 });
+
 
 
 // Fetch SabhaUsers with optional mandal filter
