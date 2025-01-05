@@ -18,7 +18,6 @@ const getAttendance = asyncHandler(async (req, res) => {
 
     const filter = {
         date: { $eq: queryDate },
-        markedBy: req.user._id,
     };
 
     if (mandal) {
