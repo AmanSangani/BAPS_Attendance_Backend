@@ -24,6 +24,7 @@ const addUser = asyncHandler(async (req, res) => {
     );
 });
 
+
 // Fetch SabhaUsers with optional mandal filter
 const getUsers = asyncHandler(async (req, res) => {
     const { mandal } = req.body;
@@ -44,7 +45,50 @@ const getUsers = asyncHandler(async (req, res) => {
     );
 });
 
+
+// Add a Many SabhaUser
+const bulkAdd = asyncHandler(async (req, res) => {
+    try {
+        const users = req.body.users; // Expecting an array of users in the request body
+    
+        if (!Array.isArray(users) || users.length === 0) {
+            return res
+                .status(400)
+                .json({
+                    error: "Invalid input. Provide a non-empty array of users.",
+                });
+        }
+    
+        
+        // Add createdBy field to each user
+        const usersWithCreatedBy = users.map(user => ({
+            ...user,
+            createdBy: req.user._id,
+        }));
+
+        console.log("users : ---", usersWithCreatedBy);
+    
+        // Insert users into the database
+        const result = await SabhaUser.insertMany(usersWithCreatedBy);
+    
+        console.log("Result : --- ", result);
+    
+        return res.status(201).json({
+            message: `${result.length} users added successfully`,
+            data: result,
+        });
+    } catch (error) {
+        console.error("Error adding users:", error);
+        return res.status(500).json({ error: "Failed to add users" });
+    }
+    
+});
+
+
+
+
 module.exports = {
     addUser,
     getUsers,
+    bulkAdd
 };

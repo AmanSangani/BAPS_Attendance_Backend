@@ -17,6 +17,10 @@ router
     );
 router
     .route("/toggle")
-    .post(verifyJwt, roleAuthorization("admin", "SahSanchalak"), toggleAttendance);
+    .post(
+        verifyJwt,
+        roleAuthorization("admin", "SahSanchalak"),
+        toggleAttendance,
+    );
 
 module.exports = router;
