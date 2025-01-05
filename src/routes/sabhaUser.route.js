@@ -3,6 +3,8 @@ const {
     addUser,
     getUsers,
     bulkAdd,
+    bulkUpdate,
+    updateUser
 } = require("../controllers/sabhaUser.controller");
 const { verifyJwt } = require("../middlewares/authMiddleware");
 
@@ -14,5 +16,6 @@ router.route("/").post(verifyJwt, getUsers);
 // -------------------------Add Many-------------------------
 // Bulk Add Sabha Users
 router.route("/bulkAdd").post(verifyJwt, bulkAdd);
+router.route("/bulkUpdate").post(verifyJwt, bulkUpdate);
 
 module.exports = router;

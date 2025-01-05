@@ -31,7 +31,7 @@ app.get("/", (req,res) => {res.status(200).send("Code Running")})
 const userRouter = require('./routes/user.route.js')
 const attendanceRoutes = require('./routes/attendance.route.js')
 const sabhaUserRoutes = require('./routes/sabhaUser.route.js')
-const mandalRoutes = require('./routes/madal.route.js')
+const mandalRoutes = require('./routes/mandal.route.js')
 const zoneRoutes = require('./routes/zone.route.js')
 
 

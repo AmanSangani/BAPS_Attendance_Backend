@@ -1,9 +1,7 @@
-const asyncHandler = require("express-async-handler");
+const { asyncHandler } = require("../utils/asyncHandler.js");
 const { Zone } = require("../models/zone.model");
-const ApiResponse = require("../utils/ApiResponse");
-const ApiError = require("../utils/ApiError");
-
-
+const { ApiResponse } = require("../utils/ApiResponse");
+const { ApiError } = require("../utils/ApiError");
 
 /**
  * Get All Zones
@@ -15,10 +13,10 @@ const getAllZones = asyncHandler(async (req, res) => {
         .select("_id zoneName city") // Select relevant fields
         .sort({ createdAt: -1 }); // Sort by creation date
 
-    return res.status(200).json(new ApiResponse(200, zones, "Zones retrieved successfully."));
+    return res
+        .status(200)
+        .json(new ApiResponse(200, zones, "Zones retrieved successfully."));
 });
-
-
 
 /**
  * Get Zone by Primary Key (ID)
@@ -35,10 +33,10 @@ const getZoneById = asyncHandler(async (req, res) => {
         throw new ApiError(404, "Zone not found.");
     }
 
-    return res.status(200).json(new ApiResponse(200, zone, "Zone retrieved successfully."));
+    return res
+        .status(200)
+        .json(new ApiResponse(200, zone, "Zone retrieved successfully."));
 });
-
-
 
 /**
  * Insert a New Zone
@@ -66,10 +64,10 @@ const insertZone = asyncHandler(async (req, res) => {
         createdBy: req.user._id, // Set the logged-in user as creator
     });
 
-    return res.status(201).json(new ApiResponse(201, newZone, "Zone created successfully."));
+    return res
+        .status(201)
+        .json(new ApiResponse(201, newZone, "Zone created successfully."));
 });
-
-
 
 /**
  * Update Zone by ID
@@ -106,10 +104,10 @@ const updateZone = asyncHandler(async (req, res) => {
 
     await zone.save();
 
-    return res.status(200).json(new ApiResponse(200, zone, "Zone updated successfully."));
+    return res
+        .status(200)
+        .json(new ApiResponse(200, zone, "Zone updated successfully."));
 });
-
-
 
 /**
  * Delete Zone by ID
@@ -128,10 +126,10 @@ const deleteZone = asyncHandler(async (req, res) => {
     // Delete the zone
     await zone.remove();
 
-    return res.status(200).json(new ApiResponse(200, null, "Zone deleted successfully."));
+    return res
+        .status(200)
+        .json(new ApiResponse(200, null, "Zone deleted successfully."));
 });
-
-
 
 module.exports = {
     getAllZones,

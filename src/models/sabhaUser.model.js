@@ -13,6 +13,11 @@ const sabhaUserSchema = new mongoose.Schema(
             ref: "Mandal",
             required: true,
         }, // References Mandal schema
+        zone: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "Zone",
+            required: true,
+        }, // References Zone schema
         activeStatus: { type: Boolean, default: true }, // Active/Inactive
         lastAcademicDetails: { type: String }, // Last academic details
         skills: { type: [String] }, // Skills
@@ -24,6 +29,11 @@ const sabhaUserSchema = new mongoose.Schema(
             ref: "User",
             required: true,
         }, // References the user who created the entry
+        updatedBy: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "User",
+            required: true,
+        }, // References the user who updates the entry
     },
     {
         timestamps: { createdAt: "createdAt", updatedAt: "modifiedAt" }, // Auto-fill timestamps

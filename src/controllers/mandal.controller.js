@@ -1,7 +1,9 @@
-const asyncHandler = require("express-async-handler");
-const { Mandal } = require("../models/mandalModel");
-const ApiResponse = require("../utils/ApiResponse");
-const ApiError = require("../utils/ApiError");
+const { asyncHandler } = require("../utils/asyncHandler.js");
+const { Mandal } = require("../models/mandal.model.js");
+const { Zone } = require("../models/zone.model.js");
+const { ApiResponse } = require("../utils/ApiResponse");
+const { ApiError } = require("../utils/ApiError");
+const mongoose = require("mongoose");
 
 /**
  * Get All Mandals
@@ -24,9 +26,14 @@ const getAllMandals = asyncHandler(async (req, res) => {
  * @access Private
  */
 const getMandalsByZone = asyncHandler(async (req, res) => {
-    const { zoneId } = req.body;
+    const { zoneId } = req.body;  // Extract zoneId from URL parameter
 
-    // Find mandals based on zone ID
+    // Check if the provided zoneId is a valid ObjectId
+    if (!mongoose.Types.ObjectId.isValid(zoneId)) {
+        throw new ApiError(400, "Invalid Zone ID format.");
+    }
+
+    // Find mandals based on the zoneId
     const mandals = await Mandal.find({ zone: zoneId })
         .select("_id mandalName initials") // Select necessary fields
         .populate("zone", "zoneName") // Populate the zone field with zoneName
@@ -38,14 +45,9 @@ const getMandalsByZone = asyncHandler(async (req, res) => {
 
     return res
         .status(200)
-        .json(
-            new ApiResponse(
-                200,
-                mandals,
-                "Mandals retrieved by zone successfully.",
-            ),
-        );
+        .json(new ApiResponse(200, mandals, "Mandals retrieved by zone successfully."));
 });
+
 
 /**
  * Get Mandal by Primary Key (ID)
@@ -86,6 +88,12 @@ const insertMandal = asyncHandler(async (req, res) => {
         );
     }
 
+    // Check if the zone exists
+    const existingZone = await Zone.findById(zone);
+    if (!existingZone) {
+        throw new ApiError(404, "Zone not found.");
+    }
+
     // Check if mandal with the same name or initials already exists
     const existingMandal = await Mandal.findOne({
         $or: [{ mandalName }, { initials }],
@@ -101,7 +109,7 @@ const insertMandal = asyncHandler(async (req, res) => {
     const newMandal = await Mandal.create({
         mandalName,
         initials,
-        zone,
+        zone: existingZone._id, // Ensure we use the correct zone ID
         createdBy: req.user._id, // Set the logged-in user as creator
     });
 

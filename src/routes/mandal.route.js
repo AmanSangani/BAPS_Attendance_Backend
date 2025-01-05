@@ -1,7 +1,5 @@
 const { Router } = require("express");
 const {
-    addMandal,
-    getMandal,
     getAllMandals,
     getMandalById,
     insertMandal,
@@ -14,10 +12,9 @@ const { verifyJwt } = require("../middlewares/authMiddleware");
 const router = Router();
 
 // Routes for managing Mandals
-router.route("/add").post(verifyJwt, addMandal);
 router.route("/").get(verifyJwt, getAllMandals); // Get all mandals
 router.route("/:id").get(verifyJwt, getMandalById); // Get mandal by ID
-router.route("/").post(verifyJwt, insertMandal); // Insert a new mandal
+router.route("/add").post(verifyJwt, insertMandal); // Insert a new mandal
 router.route("/:id").put(verifyJwt, updateMandal); // Update mandal by ID
 router.route("/:id").delete(verifyJwt, deleteMandal); // Delete mandal by ID
 router.route("/zone").post(verifyJwt, getMandalsByZone); // Get mandals by zone
