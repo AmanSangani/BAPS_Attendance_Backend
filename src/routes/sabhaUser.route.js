@@ -5,7 +5,8 @@ const {
     bulkAdd,
     bulkUpdate,
     updateUser,
-    getSabhaUserByCustomID
+    getSabhaUserByCustomID,
+    deleteSabhaUser
 } = require("../controllers/sabhaUser.controller");
 const { verifyJwt } = require("../middlewares/authMiddleware");
 
@@ -17,5 +18,6 @@ router.route("/:customID").get(verifyJwt, getSabhaUserByCustomID);
 router.route("/bulkAdd").post(verifyJwt, bulkAdd);
 router.route("/update").post(verifyJwt, updateUser);
 router.route("/bulkUpdate").post(verifyJwt, bulkUpdate);
+router.route("/delete/:customID").post(verifyJwt, deleteSabhaUser);
 
 module.exports = router;

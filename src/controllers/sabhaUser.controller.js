@@ -336,6 +336,31 @@ const getSabhaUserByCustomID = async (req, res) => {
     }
 };
 
+// Delete SabhaUser by ID
+const deleteSabhaUser = async (req, res) => {
+    const { customID } = req.params; // userId comes from the request parameters
+
+    try {
+        const sabhaUser = await SabhaUser.findOne({ customID });
+
+        if (!sabhaUser) {
+            return res.status(404).json({ message: "SabhaUser not found" });
+        }
+
+        // Find and delete the user
+        const user = await SabhaUser.findByIdAndDelete(sabhaUser._id);
+
+        if (!user) {
+            return res.status(404).json({ message: "User not found" });
+        }
+
+        return res.status(200).json({ message: "User deleted successfully" });
+    } catch (error) {
+        console.error("Error deleting sabha user:", error);
+        return res.status(500).json({ message: "Error deleting user" });
+    }
+};
+
 module.exports = {
     addUser,
     getUsers,
@@ -344,4 +369,5 @@ module.exports = {
     bulkUpdate,
     testGet,
     getSabhaUserByCustomID,
+    deleteSabhaUser,
 };
