@@ -5,7 +5,8 @@ const { uploadOnCloud } = require("../utils/cloudService.js");
 const { ApiResponse } = require("../utils/ApiResponse.js");
 const jwt = require("jsonwebtoken");
 const mongoose = require("mongoose");
-const ROLES = require('../config/roles');
+const ROLES = require("../config/roles");
+const bcrypt = require("bcrypt");
 
 const generateAccessAndRefreshToken = async (userId) => {
     try {
@@ -54,7 +55,7 @@ const registerUser = asyncHandler(async (req, res) => {
 
     if (role && !Object.values(ROLES).includes(role)) {
         throw new ApiError(400, "Invalid role");
-      }
+    }
 
     const user = await User.create({
         name,
@@ -94,6 +95,7 @@ const loginUser = asyncHandler(async (req, res) => {
         throw new ApiError(404, "User Doesn't Exist");
     }
 
+    // const isPasswordValid = await user.isPasswordCorrect(password);
     const isPasswordValid = await user.isPasswordCorrect(password);
 
     if (!isPasswordValid) {
@@ -141,4 +143,30 @@ const loginUser = asyncHandler(async (req, res) => {
         );
 });
 
-module.exports = { registerUser, loginUser };
+const updatePassword = asyncHandler(async (req, res) => {
+    const { username, newPassword } = req.body;
+
+    if (!username || !newPassword) {
+        return res.status(400).json({ message: "Username and password are required" });
+    }
+
+    const user = await User.findOne({ username });
+
+    if (!user) {
+        return res.status(404).json({ message: "User not found" });
+    }
+
+    // Hash the new password
+    user.password = newPassword;
+   
+    // Save the updated user
+    await user.save();
+
+    // Return the hashed password in the response
+    return res.status(200).json({
+        message: "Password updated successfully",
+        hashedPassword: user.password,
+    });
+});
+
+module.exports = { registerUser, loginUser, updatePassword };

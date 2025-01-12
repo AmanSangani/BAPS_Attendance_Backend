@@ -6,7 +6,6 @@ const { Mandal } = require("../models/mandal.model.js");
 const { Zone } = require("../models/zone.model.js");
 const mongoose = require("mongoose");
 
-
 // Add a new SabhaUser
 const addUser = asyncHandler(async (req, res) => {
     const {
@@ -27,7 +26,10 @@ const addUser = asyncHandler(async (req, res) => {
 
     // Validate required fields
     if (!name || !mobileNumber || !zone || !mandal) {
-        throw new ApiError(400, "Name, mobileNumber, zone, and mandal are required.");
+        throw new ApiError(
+            400,
+            "Name, mobileNumber, zone, and mandal are required.",
+        );
     }
 
     // Validate zone ID
@@ -87,7 +89,6 @@ const addUser = asyncHandler(async (req, res) => {
         .status(201)
         .json(new ApiResponse(201, newUser, "User added successfully."));
 });
-
 
 // Fetch SabhaUsers based on mandal ID
 const getUsers = asyncHandler(async (req, res) => {
@@ -299,7 +300,6 @@ const testGet = asyncHandler(async (req, res) => {
             },
         },
     ]);
-    
 
     if (!users.length) {
         throw new ApiError(404, "No users found for the specified mandal");
@@ -310,6 +310,32 @@ const testGet = asyncHandler(async (req, res) => {
         .json(new ApiResponse(200, users, "Users fetched successfully"));
 });
 
+/**
+ * Fetch a sabhaUser by customID
+ * @param {Object} req - The request object
+ * @param {Object} res - The response object
+ */
+const getSabhaUserByCustomID = async (req, res) => {
+    const { customID } = req.params;
+
+    try {
+        // Find the user by customID
+        const sabhaUser = await SabhaUser.findOne({ customID });
+
+        if (!sabhaUser) {
+            return res.status(404).json({ message: "SabhaUser not found" });
+        }
+
+        // Return the user details
+        res.status(200).json(
+            new ApiResponse(200, sabhaUser, "User fetched successfully"),
+        );
+    } catch (error) {
+        console.error("Error fetching SabhaUser by customID:", error);
+        res.status(500).json({ message: "Server error", error: error.message });
+    }
+};
+
 module.exports = {
     addUser,
     getUsers,
@@ -317,4 +343,5 @@ module.exports = {
     updateUser,
     bulkUpdate,
     testGet,
+    getSabhaUserByCustomID,
 };
