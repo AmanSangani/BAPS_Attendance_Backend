@@ -13,28 +13,68 @@ const getAttendance = asyncHandler(async (req, res) => {
         throw new ApiError(400, "Date is required");
     }
 
-    const queryDate = new Date(date);
-    queryDate.setHours(12, 12, 0, 0); // Set consistent time for comparison
+    const queryDate = new Date(date); // Parse date from the body
 
+    // Clone the queryDate to avoid mutating the original date object
+    const startOfDay = new Date(
+        Date.UTC(
+            queryDate.getUTCFullYear(),
+            queryDate.getUTCMonth(),
+            queryDate.getUTCDate(),
+            0,
+            0,
+            0,
+            0,
+        ),
+    );
+    const endOfDay = new Date(
+        Date.UTC(
+            queryDate.getUTCFullYear(),
+            queryDate.getUTCMonth(),
+            queryDate.getUTCDate(),
+            23,
+            59,
+            59,
+            999,
+        ),
+    );
+
+    // Define the filter for the entire day
     const filter = {
-        date: { $eq: queryDate },
+        date: {
+            $gte: startOfDay, // Greater than or equal to the start of the day
+            $lt: endOfDay, // Less than the end of the day (23:59:59.999)
+        },
     };
 
     if (mandal) {
-        filter.mandal = mandal;
+        filter.mandal = new mongoose.Types.ObjectId(mandal); // Ensure mandal is ObjectId
     }
 
+    console.log("Filter:", filter);
+
+    // Fetch attendance based on filter
     const attendance = await Attendance.find(filter);
 
+    console.log("Attendance:", attendance);
+
     if (!attendance.length) {
-        return res.status(200).json(
-            new ApiResponse(200, [], "Attendance not found for selected Date")
-        );
+        return res
+            .status(200)
+            .json(
+                new ApiResponse(
+                    200,
+                    [],
+                    "Attendance not found for selected Date",
+                ),
+            );
     }
 
-    return res.status(200).json(
-        new ApiResponse(200, attendance, "Attendance fetched successfully")
-    );
+    return res
+        .status(200)
+        .json(
+            new ApiResponse(200, attendance, "Attendance fetched successfully"),
+        );
 });
 
 // Toggle attendance status for a SabhaUser
@@ -54,24 +94,44 @@ const toggleAttendance = asyncHandler(async (req, res) => {
         throw new ApiError(404, "SabhaUser not found");
     }
 
+    // Set the date to the start of the day (00:00:00) in UTC for consistency
     const queryDate = new Date(date);
-    queryDate.setHours(12, 12, 0, 0); // Consistent time for comparison
+    const startOfDay = new Date(
+        Date.UTC(
+            queryDate.getUTCFullYear(),
+            queryDate.getUTCMonth(),
+            queryDate.getUTCDate(),
+            0,
+            0,
+            0,
+            0,
+        ),
+    );
 
+    // Ensure mandal is an ObjectId
+    const mandalObjectId = new mongoose.Types.ObjectId(mandal);
+
+    // Check if attendance exists for this user, date, and mandal
     let attendance = await Attendance.findOne({
         userId: sabhaUser._id,
-        date: queryDate,
-        mandal: mandal,
+        date: {
+            $gte: startOfDay,
+            $lt: new Date(startOfDay.getTime() + 86400000),
+        }, // For the entire day
+        mandal: mandalObjectId,
     });
 
     if (!attendance) {
+        // If no attendance found, create a new one
         attendance = new Attendance({
             userId: sabhaUser._id,
-            date: queryDate,
+            date: startOfDay,
             status: "Present",
             markedBy: req.user._id,
-            mandal: mandal,
+            mandal: mandalObjectId,
         });
     } else {
+        // Toggle the status
         attendance.status =
             attendance.status === "Present" ? "Absent" : "Present";
         attendance.markedBy = req.user._id;
@@ -79,9 +139,11 @@ const toggleAttendance = asyncHandler(async (req, res) => {
 
     await attendance.save();
 
-    return res.status(200).json(
-        new ApiResponse(200, attendance, "Attendance updated successfully")
-    );
+    return res
+        .status(200)
+        .json(
+            new ApiResponse(200, attendance, "Attendance updated successfully"),
+        );
 });
 
 module.exports = {

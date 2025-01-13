@@ -108,7 +108,9 @@ const getUsers = asyncHandler(async (req, res) => {
     ); // Populate 'createdBy' with name and email
 
     if (!users.length) {
-        throw new ApiError(404, "No users found for the specified mandal");
+        return res
+        .status(200)
+        .json(new ApiResponse(200, [], "Users not found"));
     }
 
     return res
