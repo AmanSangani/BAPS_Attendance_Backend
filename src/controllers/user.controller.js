@@ -1,6 +1,7 @@
 const { ApiError } = require("../utils/ApiError.js");
 const { asyncHandler } = require("../utils/asyncHandler.js");
 const { User } = require("../models/user.model.js");
+const { Mandal } = require("../models/mandal.model.js");
 const { uploadOnCloud } = require("../utils/cloudService.js");
 const { ApiResponse } = require("../utils/ApiResponse.js");
 const jwt = require("jsonwebtoken");
@@ -147,7 +148,9 @@ const updatePassword = asyncHandler(async (req, res) => {
     const { username, newPassword } = req.body;
 
     if (!username || !newPassword) {
-        return res.status(400).json({ message: "Username and password are required" });
+        return res
+            .status(400)
+            .json({ message: "Username and password are required" });
     }
 
     const user = await User.findOne({ username });
@@ -158,7 +161,7 @@ const updatePassword = asyncHandler(async (req, res) => {
 
     // Hash the new password
     user.password = newPassword;
-   
+
     // Save the updated user
     await user.save();
 
@@ -169,4 +172,167 @@ const updatePassword = asyncHandler(async (req, res) => {
     });
 });
 
-module.exports = { registerUser, loginUser, updatePassword };
+const getAllUsers = asyncHandler(async (req, res) => {
+    try {
+        // Fetch all users from the database
+        const users = await User.find().select('_id name'); // Select relevant fields
+        
+        if (users.length === 0) {
+            return res.status(404).json({ message: 'No users found.' });
+        }
+
+        return res.status(200).json(new ApiResponse(200, users, 'Users fetched successfully.'));
+    } catch (error) {
+        return res.status(500).json({ message: 'Error fetching users.', error: error.message });
+    }
+});
+
+
+/**
+ * Add Multiple Mandals to Accessible Mandals for a User
+ * @route PUT /api/users/:userId/accessible-mandals/add
+ * @access Admin
+ */
+const addMandalToAccessibleMandals = asyncHandler(async (req, res) => {
+    const { userId, mandalIds } = req.body; // Array of Mandal IDs to be added
+
+    // Validate userId
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+        return res.status(400).json({ message: "Invalid User ID format." });
+    }
+
+    // Validate mandalIds (ensure it's an array of ObjectIds)
+    if (
+        !Array.isArray(mandalIds) ||
+        mandalIds.some((id) => !mongoose.Types.ObjectId.isValid(id))
+    ) {
+        return res
+            .status(400)
+            .json({ message: "Invalid Mandal ID format(s)." });
+    }
+
+    // Check if the mandals exist in the database
+    const mandals = await Mandal.find({ _id: { $in: mandalIds } });
+    if (mandals.length !== mandalIds.length) {
+        return res
+            .status(404)
+            .json({ message: "One or more mandals not found." });
+    }
+
+    // Find user
+    const user = await User.findById(userId);
+    if (!user) {
+        return res.status(404).json({ message: "User not found." });
+    }
+
+    // Filter mandals that are not already in the user's accessibleMandals
+    const newMandals = mandalIds.filter(
+        (mandalId) => !user.accessibleMandals.includes(mandalId),
+    );
+
+    if (newMandals.length > 0) {
+        user.accessibleMandals.push(...newMandals);
+        await user.save();
+    }
+
+    return res.status(200).json({
+        message: "Mandals added to accessible mandals.",
+        user: await user.populate("accessibleMandals", "mandalName initials"),
+    });
+});
+
+/**
+ * Remove Multiple Mandals from Accessible Mandals for a User
+ * @route PUT /api/users/:userId/accessible-mandals/remove
+ * @access Admin
+ */
+const removeMandalFromAccessibleMandals = asyncHandler(async (req, res) => {
+    const { userId } = req.body; // Extract userId from the URL
+    const { mandalIds } = req.body; // Array of Mandal IDs to be removed
+
+    // Validate userId
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+        return res.status(400).json({ message: "Invalid User ID format." });
+    }
+
+    // Validate mandalIds (ensure it's an array of ObjectIds)
+    if (
+        !Array.isArray(mandalIds) ||
+        mandalIds.some((id) => !mongoose.Types.ObjectId.isValid(id))
+    ) {
+        return res
+            .status(400)
+            .json({ message: "Invalid Mandal ID format(s)." });
+    }
+
+    // Find user
+    const user = await User.findById(userId);
+    if (!user) {
+        return res.status(404).json({ message: "User not found." });
+    }
+
+    // Ensure all mandals exist in the user's accessibleMandals
+    const mandalsToRemove = mandalIds.filter((mandalId) =>
+        user.accessibleMandals.includes(mandalId),
+    );
+
+    if (mandalsToRemove.length === 0) {
+        return res.status(404).json({
+            message:
+                "None of the mandals are found in user's accessible mandals.",
+        });
+    }
+
+    // Update the user's accessibleMandals using MongoDB pull
+    await User.findByIdAndUpdate(
+        userId,
+        { $pull: { accessibleMandals: { $in: mandalsToRemove } } },
+        { new: true },
+    );
+    await user.save();
+
+    return res.status(200).json({
+        message: "Mandals removed from accessible mandals.",
+        user: await user.populate("accessibleMandals", "mandalName initials"),
+    });
+});
+
+/**
+ * Get All Accessible Mandals by User ID
+ * @route GET /api/users/:userId/accessible-mandals
+ * @access Private (Admin or User itself)
+ */
+const getAccessibleMandalsByUserId = asyncHandler(async (req, res) => {
+    const { userId } = req.body; // Get userId from request parameters
+
+    // Validate if userId is a valid ObjectId
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+        return res.status(400).json({ message: "Invalid User ID format." });
+    }
+
+    // Find the user by userId and populate accessibleMandals
+    const user = await User.findById(userId).populate(
+        "accessibleMandals",
+        "mandalName initials",
+    );
+
+    if (!user) {
+        return res.status(404).json({ message: "User not found." });
+    }
+
+    // Return the accessible mandals for the user
+    return res.status(200).json({
+        message: "Accessible mandals retrieved successfully.",
+        accessibleMandals: user.accessibleMandals,
+    });
+});
+
+module.exports = {
+    registerUser,
+    loginUser,
+    updatePassword,
+    addMandalToAccessibleMandals,
+    removeMandalFromAccessibleMandals,
+    getAccessibleMandalsByUserId,
+    getAllUsers
+};

@@ -33,6 +33,7 @@ const attendanceRoutes = require('./routes/attendance.route.js')
 const sabhaUserRoutes = require('./routes/sabhaUser.route.js')
 const mandalRoutes = require('./routes/mandal.route.js')
 const zoneRoutes = require('./routes/zone.route.js')
+const roleRoutes = require('./routes/role.route.js')
 
 
 app.use('/api/v1/users', userRouter)
@@ -41,6 +42,7 @@ app.use("/api/attendance", attendanceRoutes);
 app.use("/api/sabhaUser", sabhaUserRoutes);
 app.use("/api/mandal", mandalRoutes);
 app.use("/api/zone", zoneRoutes);
+app.use("/api/role", roleRoutes);
 
 
 

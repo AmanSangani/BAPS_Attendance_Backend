@@ -1,5 +1,6 @@
 const { asyncHandler } = require("../utils/asyncHandler.js");
 const { Mandal } = require("../models/mandal.model.js");
+const { User } = require("../models/user.model.js");
 const { Zone } = require("../models/zone.model.js");
 const { ApiResponse } = require("../utils/ApiResponse");
 const { ApiError } = require("../utils/ApiError");
@@ -20,24 +21,36 @@ const getAllMandals = asyncHandler(async (req, res) => {
         .json(new ApiResponse(200, mandals, "Mandals retrieved successfully."));
 });
 
-/**
- * Get Mandals by Zone
- * @route GET /api/mandals/zone/:zoneId
- * @access Private
- */
 const getMandalsByZone = asyncHandler(async (req, res) => {
-    const { zoneId } = req.body;  // Extract zoneId from URL parameter
+    const { zoneId } = req.body; // Extract zoneId from request body
+    const userId = req.user._id; // Assuming `req.user` contains the authenticated user
 
-    // Check if the provided zoneId is a valid ObjectId
+    // Validate zoneId
     if (!mongoose.Types.ObjectId.isValid(zoneId)) {
         throw new ApiError(400, "Invalid Zone ID format.");
     }
 
-    // Find mandals based on the zoneId
-    const mandals = await Mandal.find({ zone: zoneId })
-        .select("_id mandalName initials") // Select necessary fields
-        .populate("zone", "zoneName") // Populate the zone field with zoneName
-        .sort({ createdAt: -1 }); // Sort by creation date
+    // Fetch user's accessible mandals
+    const user = await User.findById(userId).populate(
+        "accessibleMandals",
+        "_id",
+    );
+    if (!user) {
+        throw new ApiError(404, "User not found.");
+    }
+
+    const accessibleMandalIds = user.accessibleMandals.map((mandal) =>
+        mandal._id.toString(),
+    );
+
+    // Find mandals in the given zone that the user has access to
+    const mandals = await Mandal.find({
+        zone: zoneId,
+        _id: { $in: accessibleMandalIds },
+    })
+        .select("_id mandalName initials")
+        .populate("zone", "zoneName")
+        .sort({ createdAt: -1 });
 
     if (mandals.length === 0) {
         throw new ApiError(404, "No mandals found for the specified zone.");
@@ -45,9 +58,14 @@ const getMandalsByZone = asyncHandler(async (req, res) => {
 
     return res
         .status(200)
-        .json(new ApiResponse(200, mandals, "Mandals retrieved by zone successfully."));
+        .json(
+            new ApiResponse(
+                200,
+                mandals,
+                "Mandals retrieved by zone successfully.",
+            ),
+        );
 });
-
 
 /**
  * Get Mandal by Primary Key (ID)
