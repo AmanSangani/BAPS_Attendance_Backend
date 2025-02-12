@@ -85,9 +85,9 @@ const toggleAttendance = asyncHandler(async (req, res) => {
         throw new ApiError(400, "Missing required fields");
     }
 
-    if (req.user.role !== "admin" && req.user.role !== "SahSanchalak") {
-        throw new ApiError(403, "Access denied. Unauthorized role");
-    }
+    // if (req.user.role !== "admin" && req.user.role !== "SahSanchalak") {
+    //     throw new ApiError(403, "Access denied. Unauthorized role");
+    // }
 
     const sabhaUser = await SabhaUser.findOne({ customID: id });
     if (!sabhaUser) {
@@ -109,7 +109,7 @@ const toggleAttendance = asyncHandler(async (req, res) => {
     );
 
     // Ensure mandal is an ObjectId
-    const mandalObjectId = new mongoose.Types.ObjectId(mandal);
+    const mandalObjectId = new mongoose.Types.ObjectId(mandal);    
 
     // Check if attendance exists for this user, date, and mandal
     let attendance = await Attendance.findOne({

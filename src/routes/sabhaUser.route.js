@@ -9,6 +9,7 @@ const {
     deleteSabhaUser
 } = require("../controllers/sabhaUser.controller");
 const { verifyJwt } = require("../middlewares/authMiddleware");
+const { roleAuthorization } = require("../middlewares/roleMiddleware");
 
 const router = Router();
 
@@ -18,6 +19,6 @@ router.route("/:customID").get(verifyJwt, getSabhaUserByCustomID);
 router.route("/bulkAdd").post(verifyJwt, bulkAdd);
 router.route("/update").post(verifyJwt, updateUser);
 router.route("/bulkUpdate").post(verifyJwt, bulkUpdate);
-router.route("/delete/:customID").post(verifyJwt, deleteSabhaUser);
+router.route("/delete/:customID").post(verifyJwt,roleAuthorization(["delete_sabhaUser"]), deleteSabhaUser);
 
 module.exports = router;
