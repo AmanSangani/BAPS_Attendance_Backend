@@ -10,7 +10,10 @@ const mongoose = require("mongoose");
 const addUser = asyncHandler(async (req, res) => {
     const {
         name,
+        fatherName,
+        surname,
         mobileNumber,
+        mobileNumber2,
         DOB,
         address,
         designation,
@@ -18,13 +21,14 @@ const addUser = asyncHandler(async (req, res) => {
         zone,
         activeStatus,
         lastAcademicDetails,
+        bapsId,
         skills,
+        remarks,
         isYST,
         isRaviSabha,
         image,
     } = req.body;
 
-    // Validate required fields
     if (!name || !mobileNumber || !zone || !mandal) {
         throw new ApiError(
             400,
@@ -32,58 +36,141 @@ const addUser = asyncHandler(async (req, res) => {
         );
     }
 
-    // Validate zone ID
+    console.log(req.body.isRaviSabha);
+    
+
+    // Validate zone and mandal
     const zoneData = await Zone.findById(zone);
-    if (!zoneData) {
-        throw new ApiError(404, "Zone not found.");
-    }
+    if (!zoneData) throw new ApiError(404, "Zone not found.");
 
-    // Validate mandal ID
     const mandalData = await Mandal.findById(mandal);
-    if (!mandalData) {
-        throw new ApiError(404, "Mandal not found.");
-    }
+    if (!mandalData) throw new ApiError(404, "Mandal not found.");
 
-    // Generate a new customID based on mandal initials
+    // Generate customID for selected mandal
     const initials = mandalData.initials;
-
-    // Find the last user with the same mandal and sort by numeric customID
     const lastUser = await SabhaUser.aggregate([
-        { $match: { mandal: new mongoose.Types.ObjectId(mandal) } }, // Match users in the same mandal
+        { $match: { mandal: new mongoose.Types.ObjectId(mandal) } },
         {
             $addFields: {
                 numericCustomId: {
-                    $toInt: { $substr: ["$customID", initials.length, -1] }, // Extract numeric part after initials
+                    $toInt: { $substr: ["$customID", initials.length, -1] },
                 },
             },
         },
-        { $sort: { numericCustomId: -1 } }, // Sort in descending order
-        { $limit: 1 }, // Get the top result
+        { $sort: { numericCustomId: -1 } },
+        { $limit: 1 },
     ]);
-
-    // Determine the new customID
     const lastCustomID = lastUser.length > 0 ? lastUser[0].numericCustomId : 0;
     const newCustomID = `${initials}${lastCustomID + 1}`;
 
-    // Create the new user
+    // Create new user in selected mandal
     const newUser = await SabhaUser.create({
         customID: newCustomID,
         name,
+        fatherName: fatherName || "",
+        surname: surname || "",
         mobileNumber,
+        mobileNumber2: mobileNumber2 || "",
         DOB,
         address,
         designation,
         mandal,
         zone,
-        activeStatus: activeStatus !== undefined ? activeStatus : true, // Default to active if not provided
+        activeStatus: activeStatus !== undefined ? activeStatus : true,
         lastAcademicDetails,
+        bapsId: bapsId || "",
         skills,
-        isYST: isYST !== undefined ? isYST : false, // Default to false if not provided
-        isRaviSabha: isRaviSabha !== undefined ? isRaviSabha : false, // Default to false if not provided
-        image: image || "", // Default to empty string if no image is provided
-        createdBy: req.user._id, // Set logged-in user as creator
-        updatedBy: req.user._id, // Set logged-in user as creator
+        remarks: remarks || "",
+        isYST: isYST !== undefined ? isYST : false,
+        isRaviSabha: isRaviSabha !== undefined ? isRaviSabha : false,
+        image: image || "",
+        createdBy: req.user._id,
+        updatedBy: req.user._id,
     });
+
+    const YuvaMandal = new mongoose.Types.ObjectId("677a3cbdc62f213a379c15af");
+
+    // 🔥 Additional logic to create user in "YuvaRaviSabha"
+    if (isRaviSabha && mandal !== YuvaMandal) {
+        // Check if the user already exists in "YuvaRaviSabha"
+        const yuvaRaviSabhaMandal = await Mandal.findOne({
+            _id: YuvaMandal,
+        });
+        console.log(yuvaRaviSabhaMandal);
+        
+        if (yuvaRaviSabhaMandal) {
+            const existingUser = await SabhaUser.findOne({
+                bapsId,
+                mandal: yuvaRaviSabhaMandal._id,
+            });
+            console.log(existingUser);
+            
+            // If user does not exist in "YuvaRaviSabha", create a duplicate user
+            if (!existingUser) {
+                const raviInitials = yuvaRaviSabhaMandal.initials;
+                console.log(raviInitials);
+                const lastRaviUser = await SabhaUser.aggregate([
+                    {
+                        $match: {
+                            mandal: new mongoose.Types.ObjectId(
+                                yuvaRaviSabhaMandal._id,
+                            ),
+                        },
+                    },
+                    {
+                        $addFields: {
+                            numericCustomId: {
+                                $toInt: {
+                                    $substr: [
+                                        "$customID",
+                                        raviInitials.length,
+                                        -1,
+                                    ],
+                                },
+                            },
+                        },
+                    },
+                    { $sort: { numericCustomId: -1 } },
+                    { $limit: 1 },
+                ]);
+                const lastRaviCustomID =
+                    lastRaviUser.length > 0
+                        ? lastRaviUser[0].numericCustomId
+                        : 0;
+                const newRaviCustomID = `${raviInitials}${
+                    lastRaviCustomID + 1
+                }`;
+                console.log(newRaviCustomID);
+
+                let res = await SabhaUser.create({
+                    customID: newRaviCustomID,
+                    name,
+                    fatherName: fatherName || "",
+                    surname: surname || "",
+                    mobileNumber,
+                    mobileNumber2: mobileNumber2 || "",
+                    DOB,
+                    address,
+                    designation,
+                    mandal: yuvaRaviSabhaMandal._id,
+                    zone,
+                    activeStatus:
+                        activeStatus !== undefined ? activeStatus : true,
+                    lastAcademicDetails,
+                    bapsId: bapsId || "",
+                    skills,
+                    remarks: remarks || "",
+                    isYST: isYST !== undefined ? isYST : false,
+                    isRaviSabha: true, // Ensure it's marked as Ravi Sabha user
+                    image: image || "",
+                    createdBy: req.user._id,
+                    updatedBy: req.user._id,
+                });
+                console.log(res);
+                
+            }
+        }
+    }
 
     return res
         .status(201)
@@ -109,8 +196,8 @@ const getUsers = asyncHandler(async (req, res) => {
 
     if (!users.length) {
         return res
-        .status(200)
-        .json(new ApiResponse(200, [], "Users not found"));
+            .status(200)
+            .json(new ApiResponse(200, [], "Users not found"));
     }
 
     return res
@@ -152,11 +239,15 @@ const bulkAdd = asyncHandler(async (req, res) => {
     }
 });
 
+// Update an existing SabhaUser
 const updateUser = asyncHandler(async (req, res) => {
     const {
         customID,
         name,
+        fatherName, // New field
+        surname, // New field
         mobileNumber,
+        mobileNumber2, // New field
         DOB,
         address,
         designation,
@@ -164,25 +255,27 @@ const updateUser = asyncHandler(async (req, res) => {
         zone,
         activeStatus,
         lastAcademicDetails,
+        bapsId, // New field
         skills,
+        remarks, // New field
         isYST,
         isRaviSabha,
         image,
     } = req.body;
 
-    // Find the user by ID
+    // Find the user by customID
     const user = await SabhaUser.findOne({ customID });
-
-    console.log("user: ---->", user);
 
     if (!user) {
         throw new ApiError(404, "User not found.");
     }
 
     // Validate zone ID
-    const zoneData = await Zone.findById(zone);
-    if (!zoneData) {
-        throw new ApiError(404, "Zone not found.");
+    if (zone) {
+        const zoneData = await Zone.findById(zone);
+        if (!zoneData) {
+            throw new ApiError(404, "Zone not found.");
+        }
     }
 
     // Validate the mandal if it's being updated
@@ -195,7 +288,10 @@ const updateUser = asyncHandler(async (req, res) => {
 
     // Update user fields
     user.name = name || user.name;
+    user.fatherName = fatherName || user.fatherName;
+    user.surname = surname || user.surname;
     user.mobileNumber = mobileNumber || user.mobileNumber;
+    user.mobileNumber2 = mobileNumber2 || user.mobileNumber2;
     user.DOB = DOB || user.DOB;
     user.address = address || user.address;
     user.designation = designation || user.designation;
@@ -204,7 +300,9 @@ const updateUser = asyncHandler(async (req, res) => {
     user.activeStatus =
         activeStatus !== undefined ? activeStatus : user.activeStatus;
     user.lastAcademicDetails = lastAcademicDetails || user.lastAcademicDetails;
+    user.bapsId = bapsId || user.bapsId;
     user.skills = skills || user.skills;
+    user.remarks = remarks || user.remarks;
     user.isYST = isYST !== undefined ? isYST : user.isYST;
     user.isRaviSabha =
         isRaviSabha !== undefined ? isRaviSabha : user.isRaviSabha;
@@ -312,11 +410,7 @@ const testGet = asyncHandler(async (req, res) => {
         .json(new ApiResponse(200, users, "Users fetched successfully"));
 });
 
-/**
- * Fetch a sabhaUser by customID
- * @param {Object} req - The request object
- * @param {Object} res - The response object
- */
+// Fetch SabhaUser by customID
 const getSabhaUserByCustomID = async (req, res) => {
     const { customID } = req.params;
 
