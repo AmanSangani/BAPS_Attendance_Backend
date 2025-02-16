@@ -189,7 +189,7 @@ const getUsers = asyncHandler(async (req, res) => {
     }
 
     // Step 2: Query SabhaUsers based on the mandal ObjectId
-    const users = await SabhaUser.find({ mandal: mandal._id }); // Populate 'createdBy' with name and email
+    const users = await SabhaUser.find({ mandal: mandal._id }).populate("mandal").lean(); // Populate 'createdBy' with name and email
 
     if (!users.length) {
         return res
