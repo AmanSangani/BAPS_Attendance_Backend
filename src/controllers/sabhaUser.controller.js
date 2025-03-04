@@ -4,6 +4,7 @@ const { ApiResponse } = require("../utils/ApiResponse.js");
 const { SabhaUser } = require("../models/sabhaUser.model.js");
 const { Mandal } = require("../models/mandal.model.js");
 const { Zone } = require("../models/zone.model.js");
+const { Designation } = require("../models/designation.model.js");
 const mongoose = require("mongoose");
 
 // Add a new SabhaUser
@@ -45,6 +46,9 @@ const addUser = asyncHandler(async (req, res) => {
 
     const mandalData = await Mandal.findById(mandal);
     if (!mandalData) throw new ApiError(404, "Mandal not found.");
+
+    const designationData = await Designation.findById(designation);
+    if (!designationData) throw new ApiError(404, "designation not found.");
 
     // Generate customID for selected mandal
     const initials = mandalData.initials;

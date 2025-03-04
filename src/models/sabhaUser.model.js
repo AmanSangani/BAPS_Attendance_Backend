@@ -10,7 +10,11 @@ const sabhaUserSchema = new mongoose.Schema(
         mobileNumber2: { type: String }, // New field: Alternate Mobile Number
         DOB: { type: Date }, // Date of Birth
         address: { type: String }, // Address
-        designation: { type: String }, // Role or designation
+        designation: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "Designation",
+            required: false,
+        },
         mandal: {
             type: mongoose.Schema.Types.ObjectId,
             ref: "Mandal",
