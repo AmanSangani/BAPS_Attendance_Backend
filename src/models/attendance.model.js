@@ -15,7 +15,11 @@ const attendanceSchema = new mongoose.Schema(
         mandal: {
             type: mongoose.Schema.Types.ObjectId,
             ref: "Mandal", // Make sure this matches the model name you're referencing
-            required: true,
+            required: false,
+        },
+        isRaviSabha:{
+            type: Boolean,
+            required: false,
         },
         status: {
             type: String,

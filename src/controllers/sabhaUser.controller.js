@@ -122,6 +122,23 @@ const getUsers = asyncHandler(async (req, res) => {
         .json(new ApiResponse(200, users, "Users fetched successfully"));
 });
 
+// Fetch SabhaUsers For YuvaRaviSabha
+const getUsersForYuvaRaviSabha = asyncHandler(async (req, res) => {
+
+    // Step 2: Query SabhaUsers based on the mandal ObjectId
+    const users = await SabhaUser.find({ isRaviSabha: true }).populate("mandal").lean(); // Populate 'createdBy' with name and email
+
+    if (!users.length) {
+        return res
+            .status(200)
+            .json(new ApiResponse(200, [], "Users not found"));
+    }
+
+    return res
+        .status(200)
+        .json(new ApiResponse(200, users, "Users fetched successfully"));
+});
+
 // Add a Many SabhaUser
 const bulkAdd = asyncHandler(async (req, res) => {
     try {
@@ -383,4 +400,5 @@ module.exports = {
     testGet,
     getSabhaUserByCustomID,
     deleteSabhaUser,
+    getUsersForYuvaRaviSabha,
 };

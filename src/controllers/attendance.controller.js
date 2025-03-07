@@ -146,7 +146,138 @@ const toggleAttendance = asyncHandler(async (req, res) => {
         );
 });
 
+// Fetch attendance with optional date and mandal filter
+const getAttendanceForyuvaRaviSabha = asyncHandler(async (req, res) => {
+    const { date, isRaviSabha } = req.body;
+
+    if (!date) {
+        throw new ApiError(400, "Date is required");
+    }
+
+    const queryDate = new Date(date); // Parse date from the body
+
+    // Clone the queryDate to avoid mutating the original date object
+    const startOfDay = new Date(
+        Date.UTC(
+            queryDate.getUTCFullYear(),
+            queryDate.getUTCMonth(),
+            queryDate.getUTCDate(),
+            0,
+            0,
+            0,
+            0,
+        ),
+    );
+    const endOfDay = new Date(
+        Date.UTC(
+            queryDate.getUTCFullYear(),
+            queryDate.getUTCMonth(),
+            queryDate.getUTCDate(),
+            23,
+            59,
+            59,
+            999,
+        ),
+    );
+
+    // Define the filter for the entire day
+    const filter = {
+        date: {
+            $gte: startOfDay, // Greater than or equal to the start of the day
+            $lt: endOfDay, // Less than the end of the day (23:59:59.999)
+        },
+        isRaviSabha : isRaviSabha ? true : false,
+    };
+
+    // Fetch attendance based on filter
+    const attendance = await Attendance.find(filter);
+
+    console.log("Attendance:", attendance);
+
+    if (!attendance.length) {
+        return res
+            .status(200)
+            .json(
+                new ApiResponse(
+                    200,
+                    [],
+                    "Attendance not found for selected Date",
+                ),
+            );
+    }
+
+    return res
+        .status(200)
+        .json(
+            new ApiResponse(200, attendance, "Attendance fetched successfully"),
+        );
+});
+
+// Toggle attendance status for YuvaRaviSabha
+const toggleAttendanceYuvaRaviSabha = asyncHandler(async (req, res) => {
+    const { id, isRaviSabha, date } = req.body;
+
+    if (!id || (!isRaviSabha) || !date) {
+        throw new ApiError(400, "Missing required fields");
+    }
+
+    const sabhaUser = await SabhaUser.findOne({ customID: id, isRaviSabha: true });
+    if (!sabhaUser) {
+        throw new ApiError(404, "SabhaUser not found");
+    }
+
+    // Set the date to the start of the day (00:00:00) in UTC for consistency
+    const queryDate = new Date(date);
+    const startOfDay = new Date(
+        Date.UTC(
+            queryDate.getUTCFullYear(),
+            queryDate.getUTCMonth(),
+            queryDate.getUTCDate(),
+            0,
+            0,
+            0,
+            0,
+        ),
+    );
+
+    // Check if attendance exists for this user, date, and mandal
+    let attendance = await Attendance.findOne({
+        userId: sabhaUser._id,
+        date: {
+            $gte: startOfDay,
+            $lt: new Date(startOfDay.getTime() + 86400000),
+        }, // For the entire day
+        isRaviSabha: isRaviSabha ? true : false,
+    });
+
+    if (!attendance) {
+        // If no attendance found, create a new one
+        attendance = new Attendance({
+            userId: sabhaUser._id,
+            date: startOfDay,
+            status: "Present",
+            markedBy: req.user._id,
+            isRaviSabha: isRaviSabha ? true : false,
+        });
+    } else {
+        // Toggle the status
+        attendance.status =
+            attendance.status === "Present" ? "Absent" : "Present";
+        attendance.markedBy = req.user._id;
+    }
+
+    await attendance.save();
+
+    return res
+        .status(200)
+        .json(
+            new ApiResponse(200, attendance, "Attendance updated successfully"),
+        );
+});
+
 module.exports = {
     getAttendance,
     toggleAttendance,
+    getAttendanceForyuvaRaviSabha,
+    toggleAttendanceYuvaRaviSabha,
 };
