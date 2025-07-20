@@ -4,6 +4,7 @@ const {
     toggleAttendance,
     getAttendanceForyuvaRaviSabha,
     toggleAttendanceYuvaRaviSabha,
+    getMonthlyAttendanceReport,
 } = require("../controllers/attendance.controller");
 const { verifyJwt } = require("../middlewares/authMiddleware");
 const { roleAuthorization } = require("../middlewares/roleMiddleware");
@@ -33,5 +34,7 @@ router.route("/toggleYuvaRaviSabha").post(
     roleAuthorization(["toggle_attendance"]), // Dynamic permissions
     toggleAttendanceYuvaRaviSabha,
 );
+
+router.route("/monthly-report").get(getMonthlyAttendanceReport);
 
 module.exports = router;
