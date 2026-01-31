@@ -139,6 +139,21 @@ const getUsersForYuvaRaviSabha = asyncHandler(async (req, res) => {
         .json(new ApiResponse(200, users, "Users fetched successfully"));
 });
 
+// Fetch SabhaUsers For YST (isYST: true)
+const getUsersForYST = asyncHandler(async (req, res) => {
+    const users = await SabhaUser.find({ isYST: true }).populate("mandal").lean();
+
+    if (!users.length) {
+        return res
+            .status(200)
+            .json(new ApiResponse(200, [], "Users not found"));
+    }
+
+    return res
+        .status(200)
+        .json(new ApiResponse(200, users, "Users fetched successfully"));
+});
+
 // Add a Many SabhaUser
 const bulkAdd = asyncHandler(async (req, res) => {
     try {
@@ -401,4 +416,5 @@ module.exports = {
     getSabhaUserByCustomID,
     deleteSabhaUser,
     getUsersForYuvaRaviSabha,
+    getUsersForYST,
 };

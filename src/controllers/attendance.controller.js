@@ -275,6 +275,125 @@ const toggleAttendanceYuvaRaviSabha = asyncHandler(async (req, res) => {
         );
 });
 
+// Fetch attendance for YST (isYST: true)
+const getAttendanceForYST = asyncHandler(async (req, res) => {
+    const { date } = req.body;
+
+    if (!date) {
+        throw new ApiError(400, "Date is required");
+    }
+
+    const queryDate = new Date(date);
+    const startOfDay = new Date(
+        Date.UTC(
+            queryDate.getUTCFullYear(),
+            queryDate.getUTCMonth(),
+            queryDate.getUTCDate(),
+            0,
+            0,
+            0,
+            0,
+        ),
+    );
+    const endOfDay = new Date(
+        Date.UTC(
+            queryDate.getUTCFullYear(),
+            queryDate.getUTCMonth(),
+            queryDate.getUTCDate(),
+            23,
+            59,
+            59,
+            999,
+        ),
+    );
+
+    const filter = {
+        date: {
+            $gte: startOfDay,
+            $lt: endOfDay,
+        },
+        isYST: true,
+    };
+
+    const attendance = await Attendance.find(filter);
+
+    if (!attendance.length) {
+        return res
+            .status(200)
+            .json(
+                new ApiResponse(
+                    200,
+                    [],
+                    "Attendance not found for selected Date",
+                ),
+            );
+    }
+
+    return res
+        .status(200)
+        .json(
+            new ApiResponse(200, attendance, "Attendance fetched successfully"),
+        );
+});
+
+// Toggle attendance status for YST
+const toggleAttendanceForYST = asyncHandler(async (req, res) => {
+    const { id, date } = req.body;
+
+    if (!id || !date) {
+        throw new ApiError(400, "Missing required fields");
+    }
+
+    const sabhaUser = await SabhaUser.findOne({ customID: id, isYST: true });
+    if (!sabhaUser) {
+        throw new ApiError(404, "SabhaUser not found");
+    }
+
+    const queryDate = new Date(date);
+    const startOfDay = new Date(
+        Date.UTC(
+            queryDate.getUTCFullYear(),
+            queryDate.getUTCMonth(),
+            queryDate.getUTCDate(),
+            0,
+            0,
+            0,
+            0,
+        ),
+    );
+
+    let attendance = await Attendance.findOne({
+        userId: sabhaUser._id,
+        date: {
+            $gte: startOfDay,
+            $lt: new Date(startOfDay.getTime() + 86400000),
+        },
+        isYST: true,
+    });
+
+    if (!attendance) {
+        attendance = new Attendance({
+            userId: sabhaUser._id,
+            date: startOfDay,
+            status: "Present",
+            markedBy: req.user._id,
+            isYST: true,
+        });
+    } else {
+        attendance.status =
+            attendance.status === "Present" ? "Absent" : "Present";
+        attendance.markedBy = req.user._id;
+    }
+
+    await attendance.save();
+
+    return res
+        .status(200)
+        .json(
+            new ApiResponse(200, attendance, "Attendance updated successfully"),
+        );
+});
+    
 const getSundaysInMonth = (year, month) => {
     // The month in JavaScript's Date object is 0-indexed (0-11), 
     // so we subtract 1 from the MongoDB month (1-12).
@@ -410,11 +529,119 @@ const getMonthlyAttendanceReport = asyncHandler(async (req, res) => {
         );
 });
 
+// Monthly attendance report for YST (isYST: true)
+const getMonthlyAttendanceReportYST = asyncHandler(async (req, res) => {
+    const monthlyPresentCounts = await Attendance.aggregate([
+        {
+            $match: {
+                isYST: true,
+                status: "Present",
+            },
+        },
+        {
+            $group: {
+                _id: {
+                    userId: "$userId",
+                    year: { $year: "$date" },
+                    month: { $month: "$date" },
+                },
+                presentCount: { $sum: 1 },
+            },
+        },
+        {
+            $group: {
+                _id: "$_id.userId",
+                monthlyStatsRaw: {
+                    $push: {
+                        year: "$_id.year",
+                        month: "$_id.month",
+                        presentCount: "$presentCount",
+                    },
+                },
+            },
+        },
+        {
+            $lookup: {
+                from: "sabhausers",
+                localField: "_id",
+                foreignField: "_id",
+                as: "userDetails",
+            },
+        },
+        {
+            $unwind: "$userDetails",
+        },
+        {
+            $project: {
+                _id: 0,
+                userId: "$_id",
+                customID: "$userDetails.customID",
+                name: { $concat: ["$userDetails.name", " ", "$userDetails.surname"] },
+                monthlyStatsRaw: "$monthlyStatsRaw",
+            },
+        },
+        {
+            $sort: { customID: 1 }
+        }
+    ]);
+
+    if (!monthlyPresentCounts.length) {
+        throw new ApiError(404, "No attendance data found to generate a report.");
+    }
+
+    const allMonths = new Set();
+    monthlyPresentCounts.forEach(user => {
+        user.monthlyStatsRaw.forEach(stat => {
+            allMonths.add(`${stat.year}-${stat.month}`);
+        });
+    });
+    const sortedMonths = Array.from(allMonths).sort();
+
+    const finalReport = monthlyPresentCounts.map(user => {
+        const userStatsMap = new Map(
+            user.monthlyStatsRaw.map(s => [`${s.year}-${s.month}`, s.presentCount])
+        );
+
+        const calculatedMonthlyStats = sortedMonths.map(monthKey => {
+            const [year, month] = monthKey.split('-').map(Number);
+            const presentCount = userStatsMap.get(monthKey) || 0;
+            const totalSundays = getSundaysInMonth(year, month);
+            const percentage = totalSundays > 0 ? (presentCount / totalSundays) * 100 : 0;
+
+            return {
+                year: year,
+                month: month,
+                percentage: percentage,
+            };
+        });
+
+        return {
+            userId: user.userId,
+            customID: user.customID,
+            name: user.name,
+            monthlyStats: calculatedMonthlyStats,
+        };
+    });
+
+    return res
+        .status(200)
+        .json(
+            new ApiResponse(
+                200,
+                finalReport,
+                "Monthly attendance report generated successfully"
+            )
+        );
+});
+
 
 module.exports = {
     getAttendance,
     toggleAttendance,
     getAttendanceForyuvaRaviSabha,
     toggleAttendanceYuvaRaviSabha,
+    getAttendanceForYST,
+    toggleAttendanceForYST,
     getMonthlyAttendanceReport,
+    getMonthlyAttendanceReportYST,
 };

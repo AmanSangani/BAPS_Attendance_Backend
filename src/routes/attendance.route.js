@@ -4,7 +4,10 @@ const {
     toggleAttendance,
     getAttendanceForyuvaRaviSabha,
     toggleAttendanceYuvaRaviSabha,
+    getAttendanceForYST,
+    toggleAttendanceForYST,
     getMonthlyAttendanceReport,
+    getMonthlyAttendanceReportYST,
 } = require("../controllers/attendance.controller");
 const { verifyJwt } = require("../middlewares/authMiddleware");
 const { roleAuthorization } = require("../middlewares/roleMiddleware");
@@ -35,6 +38,19 @@ router.route("/toggleYuvaRaviSabha").post(
     toggleAttendanceYuvaRaviSabha,
 );
 
+router.route("/YST").post(
+    verifyJwt,
+    roleAuthorization(["toggle_attendance"]),
+    getAttendanceForYST,
+);
+
+router.route("/toggleYST").post(
+    verifyJwt,
+    roleAuthorization(["toggle_attendance"]),
+    toggleAttendanceForYST,
+);
+
 router.route("/monthly-report").get(getMonthlyAttendanceReport);
+router.route("/monthly-report-yst").get(getMonthlyAttendanceReportYST);
 
 module.exports = router;

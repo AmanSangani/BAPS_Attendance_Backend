@@ -21,6 +21,10 @@ const attendanceSchema = new mongoose.Schema(
             type: Boolean,
             required: false,
         },
+        isYST: {
+            type: Boolean,
+            required: false,
+        },
         status: {
             type: String,
             enum: ["Present", "Absent"],
