@@ -635,6 +635,105 @@ const getMonthlyAttendanceReportYST = asyncHandler(async (req, res) => {
 });
 
 
+// Unified detailed reports endpoint (type: daily|monthly|top5|low|range)
+const getDetailedReport = asyncHandler(async (req, res) => {
+    const { type, date, startDate, endDate, mandal, limit, isRaviSabha, isYST } = req.body;
+
+    // helper for date range
+    const start = startDate ? new Date(startDate) : null;
+    const end = endDate ? new Date(endDate) : null;
+
+    if (type === "daily") {
+        if (!date) throw new ApiError(400, "Date is required for daily report");
+        const q = new Date(date);
+        const startOfDay = new Date(Date.UTC(q.getUTCFullYear(), q.getUTCMonth(), q.getUTCDate(), 0,0,0,0));
+        const endOfDay = new Date(startOfDay.getTime() + 86400000);
+
+        const filter = { date: { $gte: startOfDay, $lt: endOfDay } };
+        if (mandal) filter.mandal = new mongoose.Types.ObjectId(mandal);
+        if (typeof isRaviSabha !== "undefined") filter.isRaviSabha = !!isRaviSabha;
+        if (typeof isYST !== "undefined") filter.isYST = !!isYST;
+
+        const attendance = await Attendance.find(filter).populate("userId");
+        const presentIds = attendance.filter(a => a.status === "Present").map(a => a.userId._id.toString());
+        const usersFilter = mandal ? { mandal: new mongoose.Types.ObjectId(mandal) } : {};
+        if (typeof isRaviSabha !== "undefined") usersFilter.isRaviSabha = !!isRaviSabha;
+        if (typeof isYST !== "undefined") usersFilter.isYST = !!isYST;
+        const allUsers = await SabhaUser.find(usersFilter);
+        const present = attendance.filter(a => a.status === "Present").map(a => ({ customID: a.userId.customID, name: a.userId.name, surname: a.userId.surname }));
+        const absent = allUsers.filter(u => !presentIds.includes(u._id.toString())).map(u => ({ customID: u.customID, name: u.name, surname: u.surname }));
+        return res.status(200).json(new ApiResponse(200, { present, absent }, "Daily report"));
+    }
+
+    if (type === "monthly") {
+        // Reuse monthly pipelines: use isRaviSabha / isYST to choose which pipeline
+        if (isRaviSabha) {
+            return await getMonthlyAttendanceReport(req, res);
+        }
+        if (isYST) {
+            return await getMonthlyAttendanceReportYST(req, res);
+        }
+        throw new ApiError(400, "Specify isRaviSabha or isYST for monthly aggregated report");
+    }
+
+    if (type === "top5" || type === "low" || type === "range") {
+        const s = start || new Date(new Date().getTime() - 30 * 24 * 60 * 60 * 1000);
+        const e = end || new Date();
+        const match = {
+            date: { $gte: s, $lt: new Date(e.getTime() + 86400000) },
+            status: "Present"
+        };
+        if (mandal) match.mandal = new mongoose.Types.ObjectId(mandal);
+        if (typeof isRaviSabha !== "undefined") match.isRaviSabha = !!isRaviSabha;
+        if (typeof isYST !== "undefined") match.isYST = !!isYST;
+
+        if (type === "top5") {
+            const topUsers = await Attendance.aggregate([
+                { $match: match },
+                { $group: { _id: "$userId", presentCount: { $sum: 1 } } },
+                { $sort: { presentCount: -1 } },
+                { $limit: limit ? parseInt(limit) : 5 },
+                { $lookup: { from: "sabhausers", localField: "_id", foreignField: "_id", as: "user" } },
+                { $unwind: "$user" },
+                { $project: { _id: 0, userId: "$_id", customID: "$user.customID", name: { $concat: ["$user.name", " ", "$user.surname"] }, presentCount: 1 } }
+            ]);
+            return res.status(200).json(new ApiResponse(200, topUsers, "Top attendance"));
+        }
+
+        if (type === "low") {
+            const l = parseInt(limit) || 10;
+            const lowUsers = await Attendance.aggregate([
+                { $match: match },
+                { $group: { _id: "$userId", presentCount: { $sum: 1 } } },
+                { $sort: { presentCount: 1 } },
+                { $limit: l },
+                { $lookup: { from: "sabhausers", localField: "_id", foreignField: "_id", as: "user" } },
+                { $unwind: "$user" },
+                { $project: { _id: 0, userId: "$_id", customID: "$user.customID", name: { $concat: ["$user.name", " ", "$user.surname"] }, presentCount: 1 } }
+            ]);
+            return res.status(200).json(new ApiResponse(200, lowUsers, "Low attendance list"));
+        }
+
+        if (type === "range") {
+            const userCounts = await Attendance.aggregate([
+                { $match: match },
+                { $group: { _id: "$userId", presentCount: { $sum: 1 } } },
+                { $lookup: { from: "sabhausers", localField: "_id", foreignField: "_id", as: "user" } },
+                { $unwind: "$user" },
+                { $project: { _id: 0, userId: "$_id", customID: "$user.customID", name: { $concat: ["$user.name", " ", "$user.surname"] }, presentCount: 1 } }
+            ]);
+            const dateFilter = { date: { $gte: s, $lt: new Date(e.getTime() + 86400000) } };
+            if (mandal) dateFilter.mandal = new mongoose.Types.ObjectId(mandal);
+            if (typeof isRaviSabha !== "undefined") dateFilter.isRaviSabha = !!isRaviSabha;
+            if (typeof isYST !== "undefined") dateFilter.isYST = !!isYST;
+            const distinctDates = await Attendance.distinct("date", dateFilter);
+            return res.status(200).json(new ApiResponse(200, { totalDays: distinctDates.length, userCounts }, "Range attendance report"));
+        }
+    }
+
+    throw new ApiError(400, "Invalid report type");
+});
+
 module.exports = {
     getAttendance,
     toggleAttendance,
@@ -644,4 +743,5 @@ module.exports = {
     toggleAttendanceForYST,
     getMonthlyAttendanceReport,
     getMonthlyAttendanceReportYST,
+    getDetailedReport,
 };

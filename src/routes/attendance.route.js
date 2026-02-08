@@ -8,6 +8,7 @@ const {
     toggleAttendanceForYST,
     getMonthlyAttendanceReport,
     getMonthlyAttendanceReportYST,
+    getDetailedReport,
 } = require("../controllers/attendance.controller");
 const { verifyJwt } = require("../middlewares/authMiddleware");
 const { roleAuthorization } = require("../middlewares/roleMiddleware");
@@ -52,5 +53,8 @@ router.route("/toggleYST").post(
 
 router.route("/monthly-report").get(getMonthlyAttendanceReport);
 router.route("/monthly-report-yst").get(getMonthlyAttendanceReportYST);
+
+// Unified detailed reports endpoint
+router.route("/reports/detailed").post(verifyJwt, roleAuthorization(["view_reports"]), getDetailedReport);
 
 module.exports = router;
